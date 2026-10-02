@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir \
 
 WORKDIR /srv
 COPY app ./app
+# Seccomp profile applied to each login-browser container so Chrome's own
+# sandbox can initialise under CapDrop:ALL (see orchestrator.py).
+COPY login-browser/seccomp-chrome.json ./seccomp-chrome.json
 # Serve the bundled noVNC from within the static dir the app already exposes.
 # Copy (not symlink): the static handler rejects paths that resolve outside the
 # static dir, so a symlink to /opt/novnc would 404 and the VNC client wouldn't load.

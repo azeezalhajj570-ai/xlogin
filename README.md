@@ -8,7 +8,7 @@ system can then run automation on their behalf — **without** anyone copy-pasti
 When a subscriber clicks "Connect X account" in your app:
 
 1. Your backend asks xlogin to start a session.
-2. The subscriber opens a link and sees a **real, private Chromium** streamed to
+2. The subscriber opens a link and sees a **real, private Chrome** streamed to
    their browser (via noVNC over an authenticated WebSocket).
 3. They log in normally — password, 2FA, email code, captcha, all of it.
 4. The moment the session cookies exist, xlogin captures them, **encrypts them at
@@ -24,7 +24,7 @@ per-session token.
 Subscriber browser ──wss (token)──┐
                                   ▼
   Caddy (TLS) ──► xlogin service ──► VNC bridge ──► login-browser container
-                       │                               (Xvfb + Chromium + x11vnc)
+                       │                               (Xvfb + Chrome + x11vnc)
                        ├── SQLite (encrypted creds, session state)
                        ├── docker-socket-proxy ──► Docker (create/stop browsers)
                        └── signed webhooks ──► your backend
@@ -102,7 +102,20 @@ fails instead of storing the wrong cookies.
 `proxy_url` is optional. If your automation for an account egresses through a
 specific proxy (e.g. the subscriber's region), pass the same proxy here so the
 login happens from the same network path. Format:
-`http://user:pass@host:port`.
+`http://user:pass@host:port`. Credentials are injected by a localhost forwarder
+inside the container (Chrome can't take proxy credentials on the CLI); they are
+never written to Chrome's command line. Use a **residential** proxy in the
+account's usual country — datacentre IPs and region mismatches trigger X's login
+limits — and give it enough bandwidth, since the browser loads the full web app.
+
+### Why a real Chrome
+
+The disposable container runs genuine Google Chrome with its own sandbox on, and
+the person drives it over VNC. Playwright is used only to attach over the DevTools
+protocol and read the session cookies once they exist — it never launches or
+drives the browser. X blocks Playwright-/automation-launched browsers at the
+username step ("We've temporarily limited your login") regardless of account or
+IP; a real browser the person drives is accepted.
 
 ## Webhooks
 
@@ -131,9 +144,12 @@ Verify both (and reject old timestamps) before trusting the event.
 - **Least-privilege Docker access.** The service never touches the raw Docker
   socket; it goes through `docker-socket-proxy` with only container + volume +
   POST + ping enabled.
-- **Hardened browser containers:** non-root, `cap_drop: ALL`,
-  `no-new-privileges`, read-only root fs, `/tmp` on tmpfs, memory/CPU/PID limits,
-  `AutoRemove`.
+- **Hardened browser containers:** non-root, `cap_drop: ALL`, read-only root fs,
+  `/tmp` on tmpfs, memory/CPU/PID limits, `AutoRemove`. A tailored seccomp profile
+  (`login-browser/seccomp-chrome.json`, Docker's default plus the syscalls a
+  user-namespace sandbox needs) lets Chrome keep its **own** sandbox under
+  `cap_drop: ALL`; if the profile is unavailable the browser falls back to
+  `--no-sandbox`.
 - **Guarded state machine.** Every status change is an atomic, guarded SQLite
   transition, so a late or duplicate browser callback can't resurrect a
   cancelled/expired session or overwrite stored cookies. Per-session secrets are
