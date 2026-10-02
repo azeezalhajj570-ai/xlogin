@@ -1,0 +1,8 @@
+# Service runtime deps (installed in the service Dockerfile).
+starlette>=0.37,<1
+uvicorn[standard]>=0.29
+cryptography>=42
+websockets>=12
+
+# Dev / tests only:
+#   pytest>=8

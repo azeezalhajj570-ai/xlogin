@@ -1,0 +1,25 @@
+# Auto-HTTPS public entrypoint. Caddy obtains and renews a Let's Encrypt cert
+# for XLOGIN_DOMAIN. Everything is proxied to the xlogin service, including the
+# VNC WebSocket (Caddy upgrades WebSockets transparently).
+{$XLOGIN_DOMAIN} {
+	encode zstd gzip
+
+	# WebSocket + API + login page all live on the one upstream.
+	reverse_proxy xlogin:8000 {
+		header_up X-Forwarded-Proto {scheme}
+		# VNC streams can be long-lived; don't cut idle sockets early.
+		flush_interval -1
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

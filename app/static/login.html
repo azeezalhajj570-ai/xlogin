@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Connect your X account</title>
+<link rel="stylesheet" href="/static/login.css">
+</head>
+<body>
+<header>
+  <div class="brand">Connect your account</div>
+  <div id="timer" class="timer" hidden></div>
+</header>
+
+<main>
+  <div id="stage" class="stage">
+    <div id="overlay" class="overlay">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="overlay-text">Starting a secure browser…</p>
+    </div>
+    <div id="screen" class="screen" aria-label="Login browser"></div>
+  </div>
+
+  <aside class="help">
+    <h2>How this works</h2>
+    <ol>
+      <li>A private, throwaway browser opens on the right.</li>
+      <li>Log in to X as you normally would — including any 2-step code or captcha.</li>
+      <li>Once you're in, this window finishes automatically. You can then close it.</li>
+    </ol>
+    <p class="muted">We never see your password. The browser is destroyed as soon
+      as you're connected, and the session link expires shortly.</p>
+  </aside>
+</main>
+
+<div id="result" class="result" hidden>
+  <div class="result-card">
+    <div id="result-icon" class="result-icon">✓</div>
+    <h2 id="result-title">All set</h2>
+    <p id="result-text">Your account is connected. You can close this window.</p>
+  </div>
+</div>
+
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

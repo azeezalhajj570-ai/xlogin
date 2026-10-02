@@ -1,0 +1,69 @@
+# Production stack:
+#   caddy        — public TLS reverse proxy (auto HTTPS via Let's Encrypt)
+#   xlogin       — the API service + VNC WebSocket bridge
+#   dockerproxy  — least-privilege gateway to the Docker socket (xlogin never
+#                  touches the raw socket)
+#
+# The login-browser containers are created by the Docker daemon at runtime and
+# attach to the `browsers` network; they are never defined here.
+#
+# First run:
+#   cp .env.example .env   &&   edit .env   (generate keys — see README)
+#   docker build -t xlogin-browser:latest ./login-browser
+#   docker compose up -d --build
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      XLOGIN_DOMAIN: ${XLOGIN_DOMAIN:?set XLOGIN_DOMAIN in .env}
+    networks: [frontend]
+    depends_on: [xlogin]
+
+  xlogin:
+    build: .
+    image: xlogin:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DOCKER_HOST: tcp://dockerproxy:2375
+      XLOGIN_DATABASE_PATH: /data/xlogin.db
+      XLOGIN_BROWSER_NETWORK: ${COMPOSE_PROJECT_NAME:-xlogin}_browsers
+      XLOGIN_CALLBACK_BASE_URL: http://xlogin:8000
+    volumes:
+      - xlogin_data:/data
+    networks: [frontend, browsers, dockernet]
+    depends_on: [dockerproxy]
+    # No ports published: only Caddy reaches it.
+
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      # Least privilege: only what the orchestrator needs.
+      CONTAINERS: 1      # inspect / create / start / remove login containers
+      VOLUMES: 1         # per-account persistent profile volumes
+      POST: 1            # allow create/start
+      PING: 1            # health check
+      # Everything else stays denied (IMAGES, EXEC, SWARM, INFO, AUTH, ...).
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [dockernet]
+
+volumes:
+  xlogin_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  frontend:
+  dockernet:
+  browsers:
+    name: ${COMPOSE_PROJECT_NAME:-xlogin}_browsers
