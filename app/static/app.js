@@ -41,6 +41,16 @@ function connect() {
   rfb.background = "#000";
 
   rfb.addEventListener("connect", () => { overlay.hidden = true; });
+  // The VNC server requires a password; fetch it (we're authorised by the
+  // token) and hand it to noVNC when it reaches the auth step.
+  rfb.addEventListener("credentialsrequired", async () => {
+    try {
+      const r = await fetch(`/login/${encodeURIComponent(sessionId)}/status?token=${encodeURIComponent(token)}`,
+                            { cache: "no-store" });
+      const d = await r.json();
+      if (d.vnc_password) rfb.sendCredentials({ password: d.vnc_password });
+    } catch { /* disconnect handler will surface the failure */ }
+  });
   rfb.addEventListener("disconnect", (e) => {
     if (done) return;
     // A clean close usually means the login completed and the container exited.

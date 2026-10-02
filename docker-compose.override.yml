@@ -1,0 +1,11 @@
+# Local deploy: this host already runs nginx on 80/443, which terminates TLS
+# (certbot) and reverse-proxies to xlogin. So we:
+#   - publish xlogin only on loopback for nginx to reach, and
+#   - park the bundled Caddy behind a profile so `docker compose up` never
+#     tries to bind 80/443. (Run `--profile caddy up` if you ever want it.)
+services:
+  xlogin:
+    ports:
+      - "127.0.0.1:8000:8000"
+  caddy:
+    profiles: ["caddy"]

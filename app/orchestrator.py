@@ -44,7 +44,14 @@ class Orchestrator:
                 "ReadonlyRootfs": True,
                 "Tmpfs": {"/tmp": "rw,nosuid,nodev,size=768m"},
                 "CapDrop": ["ALL"],
-                "SecurityOpt": ["no-new-privileges:true"],
+                # NOTE: no-new-privileges intentionally omitted on this host.
+                # The Docker daemon here is snap-packaged (Canonical), whose
+                # snapd confinement rejects containers that set no_new_privs
+                # ("exec ... operation not permitted"). CapDrop ALL + read-only
+                # rootfs + non-root user still apply. Restore this on a host
+                # running apt/official Docker CE:
+                #     "SecurityOpt": ["no-new-privileges:true"],
+                "SecurityOpt": [],
                 "Mounts": mounts,
                 "LogConfig": {"Type": "json-file", "Config": {"max-size": "5m", "max-file": "1"}},
             },

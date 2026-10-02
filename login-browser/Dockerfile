@@ -3,9 +3,16 @@
 # by hand. Runs as a non-root user with a read-only root filesystem.
 FROM mcr.microsoft.com/playwright/python:v1.56.0-jammy
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         xvfb x11vnc fluxbox x11-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# The playwright Python package is not present in this base image pull, so
+# install it pinned to the version whose bundled browsers ship in the image
+# (chromium build 1194 == playwright 1.56.0, matching the base image tag).
+# PLAYWRIGHT_BROWSERS_PATH=/ms-playwright is already set, so no browser download.
+RUN pip install --no-cache-dir playwright==1.56.0
 
 # Chromium is already in the Playwright base image.
 WORKDIR /app

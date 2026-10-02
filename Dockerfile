@@ -16,7 +16,9 @@ RUN pip install --no-cache-dir \
 WORKDIR /srv
 COPY app ./app
 # Serve the bundled noVNC from within the static dir the app already exposes.
-RUN ln -s /opt/novnc /srv/app/static/novnc
+# Copy (not symlink): the static handler rejects paths that resolve outside the
+# static dir, so a symlink to /opt/novnc would 404 and the VNC client wouldn't load.
+RUN cp -a /opt/novnc /srv/app/static/novnc && rm -rf /opt/novnc
 
 RUN useradd -r -u 10001 xlogin && mkdir -p /data && chown xlogin /data
 USER xlogin

@@ -20,6 +20,7 @@ from starlette.routing import Route, WebSocketRoute
 
 from .crypto import safe_equals, token_hash
 from .service import LoginService, ServiceError
+from .store import ACTIVE
 from .vnc_gateway import vnc_websocket
 
 log = logging.getLogger("xlogin.api")
@@ -142,9 +143,16 @@ def build_app(service: LoginService) -> Starlette:
             token = request.query_params.get("token", "")
             if not row or not safe_equals(token_hash(token), row["ws_token_hash"]):
                 return JSONResponse({"error": "forbidden"}, status_code=403)
-            return JSONResponse({"status": row["status"],
-                                 "expires_in": max(0, int(row["expires_at"] - time.time()))},
-                                headers={"Cache-Control": "no-store"})
+            body = {"status": row["status"],
+                    "expires_in": max(0, int(row["expires_at"] - time.time()))}
+            # The VNC server behind the bridge requires a password. The page is
+            # already authorised by the one-time ws token, so hand it the
+            # session's VNC password to pass to noVNC. The password only guards
+            # the internal VNC port between concurrent sessions; it is never
+            # reused and the container is destroyed on completion.
+            if row["status"] in ACTIVE and row.get("vnc_password_enc"):
+                body["vnc_password"] = service.box.decrypt(row["vnc_password_enc"])
+            return JSONResponse(body, headers={"Cache-Control": "no-store"})
         except Exception:  # noqa: BLE001
             return JSONResponse({"error": "error"}, status_code=500)
 
