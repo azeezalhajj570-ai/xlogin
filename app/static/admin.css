@@ -1,0 +1,54 @@
+:root {
+  --bg: #0f1419; --panel: #1a2230; --ink: #e7e9ea; --muted: #8b98a5;
+  --accent: #1d9bf0; --ok: #00ba7c; --bad: #f4212e; --line: #2f3b47;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+header { padding: 14px 20px; border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; }
+.wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 8px 0 6px; }
+h2 { font-size: 16px; margin: 0 0 8px; }
+.muted { color: var(--muted); font-size: 13px; }
+code { background: var(--panel); padding: 1px 5px; border-radius: 5px; font-size: 12px; }
+
+form { margin-top: 20px; display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span { font-size: 13px; font-weight: 600; }
+.field em { color: var(--accent); font-style: normal; }
+.field small { font-weight: 400; }
+input {
+  width: 100%; font-size: 14px; padding: 10px 12px; border-radius: 9px;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+}
+input:focus { outline: none; border-color: var(--accent); }
+
+button#go {
+  margin-top: 4px; padding: 12px 16px; border: 0; border-radius: 9px; cursor: pointer;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 15px;
+}
+button#go:disabled { opacity: .6; cursor: default; }
+
+.error { color: var(--bad); font-size: 14px; margin: 0; }
+
+.result {
+  margin-top: 28px; padding: 18px 20px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+}
+.cred-line { display: flex; gap: 8px; align-items: stretch; margin: 10px 0; flex-wrap: wrap; }
+.cred-line input {
+  flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.copy, .open {
+  flex: none; padding: 10px 14px; border-radius: 9px; cursor: pointer; border: 0;
+  background: var(--accent); color: #fff; font-weight: 600; font-size: 13px;
+  display: inline-flex; align-items: center; text-decoration: none;
+}
+.open { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+.copy:hover { filter: brightness(1.08); }
+.open:hover { border-color: var(--accent); }

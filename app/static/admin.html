@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>xlogin · Generate login link</title>
+<link rel="stylesheet" href="/static/admin.css?v=1">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="theme-color" content="#0f1419">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="xlogin">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="icon" type="image/png" href="/static/icon-192.png">
+</head>
+<body>
+<header>
+  <div class="brand">xlogin · admin</div>
+</header>
+
+<main class="wrap">
+  <h1>Generate a login link</h1>
+  <p class="muted">Create a one-time link for someone to connect their X account.
+    Send them the link; after they log in they can copy their <code>auth_token</code>
+    and <code>ct0</code>.</p>
+
+  <form id="form" autocomplete="off">
+    <label class="field">
+      <span>API key</span>
+      <input id="key" type="password" placeholder="XLOGIN_API_KEYS value" required>
+      <small class="muted">Kept only in this tab. Needed to authorise link creation.</small>
+    </label>
+
+    <label class="field">
+      <span>Account id <em>*</em></span>
+      <input id="account_id" type="text" placeholder="your stable id for this account" required>
+    </label>
+
+    <label class="field">
+      <span>Username <small class="muted">(optional, pre-fills the X form)</small></span>
+      <input id="username" type="text" placeholder="@handle or email">
+    </label>
+
+    <label class="field">
+      <span>Proxy URL <small class="muted">(optional)</small></span>
+      <input id="proxy_url" type="text" placeholder="http://user:pass@host:port">
+    </label>
+
+    <label class="field">
+      <span>Redirect URL <small class="muted">(optional, https)</small></span>
+      <input id="redirect_url" type="text" placeholder="https://your.app/connected">
+    </label>
+
+    <button id="go" type="submit">Generate link</button>
+    <p id="error" class="error" hidden></p>
+  </form>
+
+  <section id="result" class="result" hidden>
+    <h2>Link ready</h2>
+    <p class="muted">Valid for <span id="ttl">—</span>. Send this to the account owner:</p>
+    <div class="cred-line">
+      <input id="link" type="text" readonly>
+      <button id="copy" type="button" class="copy">Copy</button>
+      <a id="open" class="open" target="_blank" rel="noopener">Open</a>
+    </div>
+    <p class="muted" id="meta"></p>
+  </section>
+</main>
+
+<script type="module" src="/static/admin.js?v=1"></script>
+</body>
+</html>

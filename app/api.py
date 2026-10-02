@@ -133,6 +133,29 @@ def build_app(service: LoginService) -> Starlette:
             return _err(e)
 
     # ---- subscriber-facing login page --------------------------------------
+    async def admin_page(request: Request):
+        # Operator-only tool to mint login links. It ships no secret: the admin
+        # supplies the API key in the browser, and every privileged action still
+        # goes through the Bearer-authenticated /sessions endpoint. Restrict
+        # access to this path at the proxy (basic auth / IP allowlist).
+        return FileResponse(STATIC / "admin.html", headers={
+            "Cache-Control": "no-store",
+            "X-Robots-Tag": "noindex",
+            "Content-Security-Policy":
+                "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; connect-src 'self'; manifest-src 'self'; "
+                "worker-src 'self'; form-action 'none'; frame-ancestors 'none'",
+            "X-Frame-Options": "DENY",
+        })
+
+    async def service_worker(request: Request):
+        # Served from the root so its scope can cover /admin (and the whole site).
+        return FileResponse(STATIC / "sw.js", headers={
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/javascript",
+            "Service-Worker-Allowed": "/",
+        })
+
     async def login_page(request: Request):
         # The page itself carries no secret; the ws token stays in the URL
         # fragment (#token=...) which browsers never send to the server or
@@ -220,6 +243,8 @@ def build_app(service: LoginService) -> Starlette:
         Route("/accounts/{account_id}/credentials", get_credentials, methods=["GET"]),
         Route("/accounts/{account_id}", delete_account, methods=["DELETE"]),
         Route("/internal/sessions/{session_id}/callback", callback, methods=["POST"]),
+        Route("/admin", admin_page, methods=["GET"]),
+        Route("/sw.js", service_worker, methods=["GET"]),
         Route("/login/{session_id}", login_page, methods=["GET"]),
         Route("/login/{session_id}/status", login_status, methods=["GET"]),
         Route("/static/{path:path}", static_file, methods=["GET"]),

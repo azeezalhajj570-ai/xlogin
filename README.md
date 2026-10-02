@@ -124,6 +124,19 @@ drives the browser. X blocks Playwright-/automation-launched browsers at the
 username step ("We've temporarily limited your login") regardless of account or
 IP; a real browser the person drives is accepted.
 
+## Admin link generator
+
+`GET /admin` is an operator-only page that creates login links without the
+command line: enter the API key (kept only in the browser tab), an `account_id`,
+and optional `username` / `proxy_url` / `redirect_url`, and it returns a ready
+`login_url` to send to the account owner. It ships no secret — every action goes
+through the Bearer-authenticated `POST /sessions` — but it is **unauthenticated at
+the HTTP layer**, so restrict the `/admin` path at your proxy (basic auth or an IP
+allowlist).
+
+It is also an installable PWA (web app manifest + service worker + icons): on a
+phone, "Add to Home screen" / "Install app" runs it full-screen.
+
 ## Webhooks
 
 Set `XLOGIN_WEBHOOK_URL` + `XLOGIN_WEBHOOK_SECRET` to receive:
