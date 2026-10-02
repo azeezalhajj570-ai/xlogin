@@ -72,11 +72,13 @@ async function poll() {
     if (data.status === "success") {
       done = true;
       try { rfb && rfb.disconnect(); } catch {}
+      if (data.redirect_to) return returnToApp(data.redirect_to, true);
       showResult(true, "Account connected", "You're all set. You can close this window and return to the app.");
       return;
     }
     if (["timeout", "failed", "cancelled"].includes(data.status)) {
       done = true;
+      if (data.redirect_to) return returnToApp(data.redirect_to, false);
       showResult(false, "Login not completed",
         "The session ended before login finished. Please start again from the app.");
       return;
@@ -84,6 +86,14 @@ async function poll() {
     updateTimer(data.expires_in);
   } catch {}
   if (!done) setTimeout(poll, 2500);
+}
+
+// Show the outcome briefly, then send the subscriber back to the app that
+// started the login (the redirect_to URL already carries account_id + status).
+function returnToApp(url, ok) {
+  showResult(ok, ok ? "Account connected" : "Login not completed",
+    "Returning you to the app…");
+  setTimeout(() => { location.href = url; }, 1200);
 }
 
 function updateTimer(seconds) {

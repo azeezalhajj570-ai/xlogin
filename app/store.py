@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     callback_token_hash TEXT NOT NULL,
     username            TEXT,
     expected_user_id    TEXT,
+    redirect_url        TEXT,
     x_user_id           TEXT,
     last_error          TEXT,
     created_at          REAL NOT NULL,
@@ -55,6 +56,15 @@ class Store:
         self.path = path
         with self._conn() as c:
             c.executescript(SCHEMA)
+            self._migrate(c)
+
+    @staticmethod
+    def _migrate(c: sqlite3.Connection) -> None:
+        # Add columns introduced after a DB was first created. CREATE TABLE
+        # IF NOT EXISTS won't touch an existing table, so bring it up to date.
+        have = {r["name"] for r in c.execute("PRAGMA table_info(sessions)")}
+        if "redirect_url" not in have:
+            c.execute("ALTER TABLE sessions ADD COLUMN redirect_url TEXT")
 
     def _conn(self) -> sqlite3.Connection:
         c = sqlite3.connect(self.path, timeout=30, isolation_level=None)

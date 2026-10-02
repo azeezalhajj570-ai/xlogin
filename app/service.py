@@ -15,6 +15,7 @@ import json
 import logging
 import time
 import uuid
+from urllib.parse import urlparse
 
 from .config import Settings
 from .crypto import SecretBox, new_token, new_vnc_password, safe_equals, token_hash
@@ -60,10 +61,12 @@ class LoginService:
 
     # ---- public API ---------------------------------------------------------
     def create_session(self, account_id: str, username: str | None,
-                        expected_user_id: str | None, proxy_url: str | None) -> dict:
+                        expected_user_id: str | None, proxy_url: str | None,
+                        redirect_url: str | None = None) -> dict:
         """Start a login session for one subscriber's account. Idempotent per
         account: if one is already active, the existing session is returned."""
         account_id = self._clean_id(account_id, "account_id")
+        redirect_url = self._clean_redirect(redirect_url)
         now = time.time()
         sid = uuid.uuid4().hex
         ws_token = new_token()
@@ -81,6 +84,7 @@ class LoginService:
             "callback_token_hash": token_hash(callback_token),
             "username": username,
             "expected_user_id": expected_user_id,
+            "redirect_url": redirect_url,
             "x_user_id": None,
             "last_error": None,
             "created_at": now,
@@ -276,4 +280,20 @@ class LoginService:
         value = (value or "").strip()
         if not value or len(value) > 128 or any(c in value for c in "/\\ \t\n"):
             raise ServiceError(f"invalid {field}")
+        return value
+
+    def _clean_redirect(self, value: str | None) -> str | None:
+        """Where to send the subscriber's browser once the login reaches a
+        terminal state. Optional. Must be an absolute http(s) URL; https is
+        required whenever the service itself is served over https."""
+        value = (value or "").strip()
+        if not value:
+            return None
+        if len(value) > 2048:
+            raise ServiceError("redirect_url is too long")
+        u = urlparse(value)
+        if u.scheme not in ("http", "https") or not u.netloc:
+            raise ServiceError("redirect_url must be an absolute http(s) URL")
+        if u.scheme != "https" and urlparse(self.s.public_base_url).scheme == "https":
+            raise ServiceError("redirect_url must be https")
         return value

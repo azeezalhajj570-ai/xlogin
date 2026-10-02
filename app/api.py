@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -20,7 +21,7 @@ from starlette.routing import Route, WebSocketRoute
 
 from .crypto import safe_equals, token_hash
 from .service import LoginService, ServiceError
-from .store import ACTIVE
+from .store import ACTIVE, TERMINAL
 from .vnc_gateway import vnc_websocket
 
 log = logging.getLogger("xlogin.api")
@@ -30,6 +31,14 @@ MAX_BODY = 256 * 1024
 
 def _err(e: ServiceError) -> JSONResponse:
     return JSONResponse({"error": e.code, "message": e.message}, status_code=e.status)
+
+
+def _with_params(url: str, **params: str) -> str:
+    """Append query params to a URL, preserving any it already has."""
+    parts = urlsplit(url)
+    query = parse_qsl(parts.query, keep_blank_values=True)
+    query += [(k, v) for k, v in params.items() if v is not None]
+    return urlunsplit(parts._replace(query=urlencode(query)))
 
 
 async def _read_json(request: Request) -> dict:
@@ -73,6 +82,7 @@ def build_app(service: LoginService) -> Starlette:
                 username=(str(body["username"]) if body.get("username") else None),
                 expected_user_id=(str(body["expected_user_id"]) if body.get("expected_user_id") else None),
                 proxy_url=(str(body["proxy_url"]) if body.get("proxy_url") else None),
+                redirect_url=(str(body["redirect_url"]) if body.get("redirect_url") else None),
             )
             return JSONResponse(result, status_code=201)
         except ServiceError as e:
@@ -145,6 +155,13 @@ def build_app(service: LoginService) -> Starlette:
                 return JSONResponse({"error": "forbidden"}, status_code=403)
             body = {"status": row["status"],
                     "expires_in": max(0, int(row["expires_at"] - time.time()))}
+            # On a terminal state, if the caller supplied a return URL, hand the
+            # page a ready-to-use target carrying the outcome so it can send the
+            # subscriber back to the app (e.g. the Odoo x-account module).
+            if row["status"] in TERMINAL and row.get("redirect_url"):
+                body["redirect_to"] = _with_params(
+                    row["redirect_url"],
+                    account_id=row["account_id"], status=row["status"])
             # The VNC server behind the bridge requires a password. The page is
             # already authorised by the one-time ws token, so hand it the
             # session's VNC password to pass to noVNC. The password only guards

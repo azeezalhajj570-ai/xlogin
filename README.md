@@ -69,7 +69,7 @@ stable and unique in your system.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/sessions` | Start a login. Body: `{account_id, username?, expected_user_id?, proxy_url?}`. Returns `login_url`. |
+| `POST` | `/sessions` | Start a login. Body: `{account_id, username?, expected_user_id?, proxy_url?, redirect_url?}`. Returns `login_url`. |
 | `GET` | `/sessions/{id}?account_id=` | Poll status (`starting` → `waiting_for_login` → `success`/`failed`/`timeout`/`cancelled`). |
 | `DELETE` | `/sessions/{id}?account_id=` | Cancel a login in progress. |
 | `GET` | `/accounts/{account_id}/credentials` | Fetch captured `auth_token`, `ct0`, full cookie jar, user agent, `x_user_id`. |
@@ -107,6 +107,13 @@ inside the container (Chrome can't take proxy credentials on the CLI); they are
 never written to Chrome's command line. Use a **residential** proxy in the
 account's usual country — datacentre IPs and region mismatches trigger X's login
 limits — and give it enough bandwidth, since the browser loads the full web app.
+
+`redirect_url` is optional. If set, the login page sends the subscriber's browser
+there once the session reaches a terminal state, with the outcome appended as
+query params — e.g. `https://app.example.com/connected?account_id=sub_123&status=success`
+(`status` is one of `success`/`failed`/`timeout`/`cancelled`). Must be https when
+the service is served over https. Use it to return the subscriber to your app
+(the webhook + credentials endpoint remain the source of truth for the cookies).
 
 ### Why a real Chrome
 
