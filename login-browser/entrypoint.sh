@@ -23,5 +23,13 @@ x11vnc -storepasswd "$XLOGIN_VNC_PASSWORD" /tmp/.vnc/passwd >/dev/null 2>&1
 x11vnc -display "$DISPLAY" -rfbauth /tmp/.vnc/passwd -rfbport 5900 \
        -forever -shared -noxdamage -quiet -bg -o /tmp/x11vnc.log
 
-# capture.py exits when login is captured or TTL expires; AutoRemove cleans up.
+# If the session uses an authenticated proxy, start the localhost forwarder that
+# injects the upstream credentials (Chrome can't take them on the CLI). It binds
+# 127.0.0.1 only; capture.py points Chrome at it.
+if [ -n "${XLOGIN_PROXY_URL:-}" ] && printf '%s' "$XLOGIN_PROXY_URL" | grep -q '@'; then
+    python3 /app/proxy_forwarder.py &
+fi
+
+# capture.py launches Chrome, then exits when login is captured or TTL expires;
+# AutoRemove cleans up the container.
 exec python3 /app/capture.py

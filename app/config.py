@@ -60,6 +60,10 @@ class Settings:
     novnc_dir: str = "/opt/novnc"
     session_retention_days: int = 30
     reaper_interval: int = 15
+    # Seccomp profile for login-browser containers (Docker's default plus the
+    # syscalls Chrome's user-namespace sandbox needs). Empty disables it, which
+    # forces Chrome to run with --no-sandbox — see Orchestrator.
+    browser_seccomp_path: str = "/srv/seccomp-chrome.json"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -84,6 +88,7 @@ class Settings:
             webhook_secret=os.getenv("XLOGIN_WEBHOOK_SECRET") or None,
             novnc_dir=os.getenv("XLOGIN_NOVNC_DIR", cls.novnc_dir),
             session_retention_days=int(os.getenv("XLOGIN_SESSION_RETENTION_DAYS", cls.session_retention_days)),
+            browser_seccomp_path=os.getenv("XLOGIN_BROWSER_SECCOMP_PATH", cls.browser_seccomp_path),
         )
         s.validate(allow_insecure=_bool("XLOGIN_ALLOW_INSECURE_HTTP", False))
         return s
