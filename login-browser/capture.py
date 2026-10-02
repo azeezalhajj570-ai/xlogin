@@ -71,7 +71,15 @@ async def main() -> int:
             proxy=parse_proxy(PROXY_URL),
             viewport=None,
             no_viewport=True,
-            args=["--start-maximized", "--disable-dev-shm-usage"],
+            # The human drives the login, so don't let Chromium advertise
+            # itself as automation: drop --enable-automation (which sets
+            # navigator.webdriver=true) and the AutomationControlled flag.
+            ignore_default_args=["--enable-automation"],
+            args=[
+                "--start-maximized",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+            ],
         )
         page = ctx.pages[0] if ctx.pages else await ctx.new_page()
 
