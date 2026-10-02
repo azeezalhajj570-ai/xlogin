@@ -162,6 +162,22 @@ def build_app(service: LoginService) -> Starlette:
                 body["redirect_to"] = _with_params(
                     row["redirect_url"],
                     account_id=row["account_id"], status=row["status"])
+            # On success, hand the captured auth_token/ct0 to the page so the
+            # operator can copy them straight into their importer. This is gated
+            # by the one-time ws token and the link is short-lived; the person
+            # holding it is the account owner who just authenticated, so they are
+            # only being shown their own session cookies.
+            if row["status"] == "success":
+                creds = service.store.get_credentials(row["account_id"])
+                if creds:
+                    at = service.box.decrypt(creds["auth_token_enc"])
+                    ct0 = service.box.decrypt(creds["ct0_enc"])
+                    body["credentials"] = {
+                        "auth_token": at,
+                        "ct0": ct0,
+                        "cookie": f"auth_token={at}; ct0={ct0}",
+                        "x_user_id": creds.get("x_user_id"),
+                    }
             # The VNC server behind the bridge requires a password. The page is
             # already authorised by the one-time ws token, so hand it the
             # session's VNC password to pass to noVNC. The password only guards

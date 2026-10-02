@@ -73,6 +73,7 @@ async function poll() {
       done = true;
       try { rfb && rfb.disconnect(); } catch {}
       if (data.redirect_to) return returnToApp(data.redirect_to, true);
+      if (data.credentials) return showCredentials(data.credentials);
       showResult(true, "Account connected", "You're all set. You can close this window and return to the app.");
       return;
     }
@@ -86,6 +87,56 @@ async function poll() {
     updateTimer(data.expires_in);
   } catch {}
   if (!done) setTimeout(poll, 2500);
+}
+
+// Success with no return URL: show the captured session tokens with copy
+// buttons so the operator can paste them into their importer.
+function showCredentials(creds) {
+  showResult(true, "Account connected", "Copy your session tokens below.");
+  const card = document.querySelector(".result-card");
+  card.classList.add("wide");
+  const box = document.createElement("div");
+  box.className = "creds";
+  const fields = [
+    ["Cookie (for import)", creds.cookie],
+    ["auth_token", creds.auth_token],
+    ["ct0", creds.ct0],
+  ];
+  for (const [label, value] of fields) {
+    if (!value) continue;
+    const row = document.createElement("div");
+    row.className = "cred";
+    const lab = document.createElement("label");
+    lab.textContent = label;
+    const line = document.createElement("div");
+    line.className = "cred-line";
+    const input = document.createElement("input");
+    input.type = "text"; input.readOnly = true; input.value = value;
+    input.addEventListener("focus", () => input.select());
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "copy"; btn.textContent = "Copy";
+    btn.addEventListener("click", () => copyValue(value, btn));
+    line.append(input, btn);
+    row.append(lab, line);
+    box.append(row);
+  }
+  const note = document.createElement("p");
+  note.className = "muted creds-note";
+  note.textContent = "These are secrets — they grant access to the account. "
+    + "Close this window when you're done.";
+  box.append(note);
+  card.append(box);
+}
+
+async function copyValue(value, btn) {
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(value);
+    btn.textContent = "Copied";
+  } catch {
+    btn.textContent = "Press ⌘/Ctrl+C";
+  }
+  setTimeout(() => { btn.textContent = original; }, 1500);
 }
 
 // Show the outcome briefly, then send the subscriber back to the app that

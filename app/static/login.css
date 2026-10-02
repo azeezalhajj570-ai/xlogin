@@ -54,6 +54,22 @@ main {
   font-size: 30px; background: rgba(0,186,124,.15); color: var(--ok);
 }
 .result-icon.bad { background: rgba(244,33,46,.15); color: var(--bad); }
+.result-card.wide { max-width: 560px; width: calc(100% - 32px); }
+.creds { margin-top: 20px; text-align: left; }
+.cred { margin-bottom: 14px; }
+.cred label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+.cred-line { display: flex; gap: 8px; }
+.cred-line input {
+  flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; padding: 9px 10px; border-radius: 8px;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+}
+.copy {
+  flex: none; padding: 9px 14px; border-radius: 8px; cursor: pointer;
+  background: var(--accent); color: #fff; border: 0; font-weight: 600; font-size: 13px;
+}
+.copy:hover { filter: brightness(1.08); }
+.creds-note { margin: 4px 0 0; }
 @media (max-width: 760px) {
   /* Phone/tablet: stack vertically and let the page scroll naturally, with the
      remote browser prominent and the instructions beneath it. */
