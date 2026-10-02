@@ -63,7 +63,22 @@ def extract_user_id(cookies: list[dict]) -> str | None:
     return None
 
 
+def clear_stale_singleton_locks() -> None:
+    # Chromium writes SingletonLock/Cookie/Socket into the profile, keyed to the
+    # container's hostname. Each session is a fresh container (new hostname) and
+    # the browser is torn down rather than closed cleanly, so on a persisted
+    # profile the next launch finds a foreign lock and exits immediately
+    # ("Target page, context or browser has been closed"). Remove them first;
+    # only this container uses this profile right now.
+    for name in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+        try:
+            os.unlink(os.path.join(PROFILE_DIR, name))
+        except OSError:
+            pass
+
+
 async def main() -> int:
+    clear_stale_singleton_locks()
     async with async_playwright() as pw:
         ctx = await pw.chromium.launch_persistent_context(
             user_data_dir=PROFILE_DIR,
