@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Connect your X account</title>
-<link rel="stylesheet" href="/static/login.css?v=4">
+<link rel="stylesheet" href="/static/login.css?v=5">
 </head>
 <body>
 <header>
@@ -19,7 +19,10 @@
       <p id="overlay-text">Starting a secure browser…</p>
     </div>
     <div id="screen" class="screen" aria-label="Login browser"></div>
+    <button id="kbd-toggle" type="button" class="kbd-toggle" aria-label="Show keyboard" hidden>⌨ Keyboard</button>
   </div>
+  <textarea id="kbdinput" class="kbdinput" autocapitalize="off" autocomplete="off"
+            autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1"></textarea>
 
   <aside class="help">
     <h2>How this works</h2>
@@ -41,6 +44,6 @@
   </div>
 </div>
 
-<script type="module" src="/static/app.js?v=4"></script>
+<script type="module" src="/static/app.js?v=6"></script>
 </body>
 </html>

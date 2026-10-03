@@ -3,6 +3,8 @@
 // opens an authenticated WebSocket to this service, and renders the remote
 // browser with noVNC. Polls read-only status to show success / timeout.
 import RFB from "/static/novnc/core/rfb.js";
+import KeyTable from "/static/novnc/core/input/keysym.js";
+import keysyms from "/static/novnc/core/input/keysymdef.js";
 
 const sessionId = location.pathname.split("/").filter(Boolean).pop();
 const token = new URLSearchParams(location.hash.slice(1)).get("token");
@@ -39,6 +41,9 @@ function connect() {
   rfb.scaleViewport = true;
   rfb.resizeSession = false;
   rfb.background = "#000";
+  // On touch, don't let a tap grab the (invisible) canvas keyboard; we route
+  // typing through a real text field instead so the phone's keyboard appears.
+  if (IS_TOUCH) rfb.focusOnClick = false;
 
   rfb.addEventListener("connect", () => { overlay.hidden = true; });
   // The VNC server requires a password; fetch it (we're authorised by the
@@ -155,5 +160,64 @@ function updateTimer(seconds) {
   t.textContent = `Session expires in ${m}:${String(s).padStart(2, "0")}`;
 }
 
+// ---- mobile keyboard --------------------------------------------------------
+// A canvas can't open a phone's on-screen keyboard, so we focus a hidden text
+// field and forward what gets typed to the remote browser as key events. This
+// mirrors how noVNC's own client supports touch devices.
+const IS_TOUCH = window.matchMedia("(pointer: coarse)").matches
+  || ("ontouchstart" in window);
+const FILLER_LEN = 100;
+
+function setupKeyboard() {
+  const kbd = $("kbdinput");
+  const toggle = $("kbd-toggle");
+  if (!kbd || !toggle) return;
+  if (!IS_TOUCH) { toggle.hidden = true; return; }
+  toggle.hidden = false;
+
+  let last = "";
+  const reset = () => { last = "_".repeat(FILLER_LEN); kbd.value = last; };
+  reset();
+
+  function sendChar(cp) {
+    if (cp === 0x0a || cp === 0x0d) { rfb && rfb.sendKey(KeyTable.XK_Return, "Enter"); return; }
+    const ks = keysyms.lookup(cp);
+    if (ks && rfb) rfb.sendKey(ks);
+  }
+
+  kbd.addEventListener("input", () => {
+    const value = kbd.value;
+    // Count how many trailing chars differ from the filler baseline.
+    let shared = 0;
+    const max = Math.min(value.length, last.length);
+    while (shared < max && value[shared] === last[shared]) shared++;
+    const backspaces = last.length - shared;
+    for (let i = 0; i < backspaces; i++) rfb && rfb.sendKey(KeyTable.XK_BackSpace, "Backspace");
+    for (const ch of value.slice(shared)) sendChar(ch.codePointAt(0));
+    if (value.length > 2 * FILLER_LEN || value.length < 2) reset();
+    else last = value;
+  });
+
+  // A few control keys that hardware/soft keyboards deliver as keydown.
+  const SPECIAL = {
+    Enter: KeyTable.XK_Return, Backspace: KeyTable.XK_BackSpace, Tab: KeyTable.XK_Tab,
+    Escape: KeyTable.XK_Escape, ArrowUp: KeyTable.XK_Up, ArrowDown: KeyTable.XK_Down,
+    ArrowLeft: KeyTable.XK_Left, ArrowRight: KeyTable.XK_Right,
+  };
+  kbd.addEventListener("keydown", (e) => {
+    const ks = SPECIAL[e.key];
+    if (ks) { e.preventDefault(); rfb && rfb.sendKey(ks, e.code); if (e.key !== "Backspace") reset(); }
+  });
+
+  const focusKbd = () => { kbd.focus(); };
+  toggle.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (document.activeElement === kbd) kbd.blur(); else focusKbd();
+  });
+  // Tapping the remote screen also brings up the keyboard.
+  $("stage").addEventListener("touchend", () => { if (!done) setTimeout(focusKbd, 50); });
+}
+
+setupKeyboard();
 connect();
 poll();
