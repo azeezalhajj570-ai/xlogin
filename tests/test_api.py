@@ -8,7 +8,7 @@ def _callback_token(svc, session_id):
     # Pull the per-session callback token the way the real container would:
     # the service generated it; we reproduce by reading what create stored is
     # impossible (only the hash is kept), so we capture it via the orchestrator.
-    for name, sid, acc, env in svc.orch.started:
+    for name, sid, acc, env, *_ in svc.orch.started:
         if sid == session_id:
             return env["XLOGIN_CALLBACK_TOKEN"]
     raise AssertionError("session not started")
@@ -128,7 +128,7 @@ def test_delete_account_wipes_everything(client, auth):
     assert c.get("/accounts/gone/credentials", headers=auth).status == 200
     assert c.delete("/accounts/gone", headers=auth).json()["deleted"] is True
     assert c.get("/accounts/gone/credentials", headers=auth).status == 404
-    assert "gone" in orch.deleted_profiles
+    assert ("gone", None) in orch.deleted_profiles
 
 
 def test_browser_start_failure_is_503(client, auth):

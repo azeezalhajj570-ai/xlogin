@@ -22,7 +22,7 @@ from starlette.routing import Route, WebSocketRoute
 from .crypto import safe_equals, token_hash
 from .service import LoginService, ServiceError
 from .store import ACTIVE, TERMINAL
-from .vnc_gateway import vnc_websocket
+from .vnc_gateway import view_vnc_websocket, vnc_websocket
 
 log = logging.getLogger("xlogin.api")
 STATIC = Path(__file__).parent / "static"
@@ -83,6 +83,7 @@ def build_app(service: LoginService) -> Starlette:
                 expected_user_id=(str(body["expected_user_id"]) if body.get("expected_user_id") else None),
                 proxy_url=(str(body["proxy_url"]) if body.get("proxy_url") else None),
                 redirect_url=(str(body["redirect_url"]) if body.get("redirect_url") else None),
+                device=(str(body["device"]) if body.get("device") else None),
             )
             return JSONResponse(result, status_code=201)
         except ServiceError as e:
@@ -122,6 +123,56 @@ def build_app(service: LoginService) -> Starlette:
         except ServiceError as e:
             return _err(e)
 
+    # ---- persistent browsers -----------------------------------------------
+    async def get_browser(request: Request):
+        if (deny := _check_key(request)):
+            return deny
+        try:
+            return JSONResponse(service.get_browser(request.path_params["account_id"]))
+        except ServiceError as e:
+            return _err(e)
+
+    async def wake_browser(request: Request):
+        if (deny := _check_key(request)):
+            return deny
+        try:
+            return JSONResponse(service.wake(request.path_params["account_id"]), status_code=202)
+        except ServiceError as e:
+            return _err(e)
+
+    async def sleep_browser(request: Request):
+        if (deny := _check_key(request)):
+            return deny
+        try:
+            return JSONResponse(service.sleep(request.path_params["account_id"]))
+        except ServiceError as e:
+            return _err(e)
+
+    async def view_browser(request: Request):
+        if (deny := _check_key(request)):
+            return deny
+        try:
+            return JSONResponse(service.view(request.path_params["account_id"]), status_code=201)
+        except ServiceError as e:
+            return _err(e)
+
+    async def move_browser(request: Request):
+        if (deny := _check_key(request)):
+            return deny
+        try:
+            body = await _read_json(request)
+            node = body.get("node")
+            if not node:
+                raise ServiceError("node is required")
+            return JSONResponse(service.move(request.path_params["account_id"], str(node)))
+        except ServiceError as e:
+            return _err(e)
+
+    async def list_nodes(request: Request):
+        if (deny := _check_key(request)):
+            return deny
+        return JSONResponse({"nodes": service.nodes_status()})
+
     # ---- internal callback (from the login container) ----------------------
     async def callback(request: Request):
         token = request.headers.get("x-callback-token", "")
@@ -129,6 +180,15 @@ def build_app(service: LoginService) -> Starlette:
             body = await _read_json(request)
             return JSONResponse(service.handle_callback(
                 request.path_params["session_id"], token, body))
+        except ServiceError as e:
+            return _err(e)
+
+    async def browser_callback(request: Request):
+        token = request.headers.get("x-callback-token", "")
+        try:
+            body = await _read_json(request)
+            return JSONResponse(service.handle_browser_callback(
+                request.path_params["run_id"], token, body))
         except ServiceError as e:
             return _err(e)
 
@@ -212,6 +272,19 @@ def build_app(service: LoginService) -> Starlette:
         except Exception:  # noqa: BLE001
             return JSONResponse({"error": "error"}, status_code=500)
 
+    async def view_status(request: Request):
+        # Status for the live-browser view page, authorised by the view token.
+        from .service import Forbidden
+        try:
+            b = service.check_view(request.path_params["run_id"], request.query_params.get("token", ""))
+        except Forbidden:
+            return JSONResponse({"error": "forbidden"}, status_code=403)
+        body = {"status": b["state"],
+                "expires_in": max(0, int((b.get("view_expires_at") or 0) - time.time()))}
+        if b["state"] == "live" and b.get("vnc_password_enc"):
+            body["vnc_password"] = service.box.decrypt(b["vnc_password_enc"])
+        return JSONResponse(body, headers={"Cache-Control": "no-store"})
+
     async def static_file(request: Request):
         rel = request.path_params["path"]
         target = (STATIC / rel).resolve()
@@ -228,12 +301,22 @@ def build_app(service: LoginService) -> Starlette:
             ok, detail["db"], detail["db_error"] = False, False, str(e)
         try:
             detail["docker"] = service.orch.ping()
+            if not detail["docker"]:
+                ok = False
         except Exception as e:  # noqa: BLE001
             ok, detail["docker"], detail["docker_error"] = False, False, str(e)
+        try:
+            detail["nodes"] = [{**n, "reachable": service.orch.ping_node(n["name"])}
+                               for n in service.nodes_status()]
+        except Exception:  # noqa: BLE001
+            pass
         return JSONResponse({"ok": ok, **detail}, status_code=200 if ok else 503)
 
     async def vnc(ws):
         await vnc_websocket(ws, service)
+
+    async def view_vnc(ws):
+        await view_vnc_websocket(ws, service)
 
     routes = [
         Route("/healthz", health),
@@ -242,13 +325,23 @@ def build_app(service: LoginService) -> Starlette:
         Route("/sessions/{session_id}", cancel_session, methods=["DELETE"]),
         Route("/accounts/{account_id}/credentials", get_credentials, methods=["GET"]),
         Route("/accounts/{account_id}", delete_account, methods=["DELETE"]),
+        Route("/accounts/{account_id}/browser", get_browser, methods=["GET"]),
+        Route("/accounts/{account_id}/browser", wake_browser, methods=["POST"]),
+        Route("/accounts/{account_id}/browser", sleep_browser, methods=["DELETE"]),
+        Route("/accounts/{account_id}/view", view_browser, methods=["POST"]),
+        Route("/accounts/{account_id}/move", move_browser, methods=["POST"]),
+        Route("/nodes", list_nodes, methods=["GET"]),
         Route("/internal/sessions/{session_id}/callback", callback, methods=["POST"]),
+        Route("/internal/browsers/{run_id}/callback", browser_callback, methods=["POST"]),
         Route("/admin", admin_page, methods=["GET"]),
         Route("/sw.js", service_worker, methods=["GET"]),
         Route("/login/{session_id}", login_page, methods=["GET"]),
         Route("/login/{session_id}/status", login_status, methods=["GET"]),
+        Route("/view/{run_id}", login_page, methods=["GET"]),
+        Route("/view/{run_id}/status", view_status, methods=["GET"]),
         Route("/static/{path:path}", static_file, methods=["GET"]),
         WebSocketRoute("/sessions/{session_id}/vnc", vnc),
+        WebSocketRoute("/view/{run_id}/vnc", view_vnc),
     ]
 
     app = Starlette(routes=routes)

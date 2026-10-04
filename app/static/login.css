@@ -96,13 +96,14 @@ main {
   .stage {
     /* Fill most of the first screen so the login browser is usable on touch,
        using small-viewport units to account for mobile browser chrome. */
-    height: 68vh; height: 68svh; min-height: 360px; margin-bottom: 12px;
+    /* Tall enough that a portrait (mobile-mode) remote screen scales close to 1:1. */
+    height: 82vh; height: 82svh; min-height: 420px; margin-bottom: 12px;
   }
   .help { padding: 16px; }
 }
 @media (max-width: 420px) {
   .brand { font-size: 14px; }
   main { padding: 10px; }
-  .stage { height: 64vh; height: 64svh; }
+  .stage { height: 80vh; height: 80svh; }
   .result-card { padding: 28px 22px; margin: 16px; }
 }

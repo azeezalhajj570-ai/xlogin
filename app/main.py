@@ -13,7 +13,6 @@ import time
 from .api import build_app
 from .config import Settings
 from .crypto import SecretBox
-from .docker_api import DockerClient
 from .orchestrator import Orchestrator
 from .service import LoginService
 from .store import Store
@@ -29,8 +28,8 @@ log = logging.getLogger("xlogin")
 def create_service(settings: Settings | None = None) -> LoginService:
     settings = settings or Settings.from_env()
     store = Store(settings.database_path)
-    docker = DockerClient(settings.docker_host, settings.docker_api_version)
-    orchestrator = Orchestrator(docker, settings)
+    # One Docker client per configured node (browser server).
+    orchestrator = Orchestrator(None, settings)
     box = SecretBox(settings.encryption_keys)
     webhooks = WebhookSender(settings.webhook_url, settings.webhook_secret)
     webhooks.start()

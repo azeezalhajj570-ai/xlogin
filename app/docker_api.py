@@ -84,3 +84,37 @@ class DockerClient:
 
     def remove_volume(self, name: str) -> None:
         self._request("DELETE", f"/volumes/{quote(name)}", ok=(204, 404))
+
+    def inspect_container(self, ident: str) -> dict:
+        return self._request("GET", f"/containers/{quote(ident)}/json")
+
+    def update_container(self, ident: str, resources: dict) -> None:
+        """Change resource limits of a running container (e.g. lower the memory
+        cap once an interactive login becomes a background browser)."""
+        self._request("POST", f"/containers/{quote(ident)}/update", body=resources)
+
+    def get_archive(self, ident: str, path: str) -> bytes:
+        """Tar of `path` inside the container (works on a created, unstarted one)."""
+        return self._raw("GET", f"/containers/{quote(ident)}/archive", {"path": path})
+
+    def put_archive(self, ident: str, path: str, tar: bytes) -> None:
+        """Extract a tar into `path` inside the container."""
+        self._raw("PUT", f"/containers/{quote(ident)}/archive", {"path": path}, tar,
+                  content_type="application/x-tar")
+
+    def _raw(self, method: str, path: str, query: dict | None = None, body: bytes | None = None,
+             content_type: str | None = None) -> bytes:
+        url = f"/{self.api_version}{path}"
+        if query:
+            url += "?" + urlencode(query)
+        conn = self._connect()
+        try:
+            headers = {"Content-Type": content_type} if content_type else {}
+            conn.request(method, url, body=body, headers=headers)
+            resp = conn.getresponse()
+            data = resp.read()
+        finally:
+            conn.close()
+        if resp.status not in (200, 201, 204):
+            raise DockerError(resp.status, data[:300].decode(errors="replace"))
+        return data

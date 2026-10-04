@@ -82,7 +82,7 @@ def test_reaper_fails_overdue_start(settings, tmp_path):
 def test_reaper_kills_orphan_container(ctx):
     svc, store, orch, _ = ctx
     # a container with no matching session row
-    orch.containers["xlogin-orphan"] = "ghost-session"
+    orch.add_orphan("xlogin-orphan", session_id="ghost-session")
     svc.reap()
     assert "xlogin-orphan" in orch.stopped
 
