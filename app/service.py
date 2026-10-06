@@ -160,6 +160,8 @@ class LoginService:
             "XLOGIN_PROXY_URL": proxy_url or "",
             "XLOGIN_MODE": "login",
             "XLOGIN_SCREEN": self.s.screen_for(device),
+            "XLOGIN_DEVICE": device or "desktop",
+            "XLOGIN_USER_AGENT": self.s.user_agent_for(device),
             **self._keeper_env(),
         }
         try:
@@ -598,6 +600,8 @@ class LoginService:
             "XLOGIN_PROXY_URL": proxy_url,
             "XLOGIN_MODE": "wake",
             "XLOGIN_SCREEN": self.s.screen_for(b.get("device")),
+            "XLOGIN_DEVICE": b.get("device") or "desktop",
+            "XLOGIN_USER_AGENT": self.s.user_agent_for(b.get("device")),
             **self._keeper_env(),
         }
         try:

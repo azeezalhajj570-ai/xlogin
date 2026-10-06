@@ -214,7 +214,7 @@ nodes.
 ## Mobile mode
 
 Many owners connect from a phone. `"device": "mobile"` starts the login with a
-**portrait** virtual screen (`XLOGIN_MOBILE_SCREEN`, default `400x760x24`) and a
+**portrait** virtual screen (`XLOGIN_MOBILE_SCREEN`, default `520x900x24`) and a
 matching Chrome window, so x.com lays itself out for a narrow screen and the
 remote browser shows close to 1:1 on the phone instead of a shrunken desktop.
 The login page already provides an on-screen keyboard on touch devices.
@@ -314,7 +314,7 @@ comments. Key ones:
 | `XLOGIN_KEEPER_POLL` | 90 | Seconds between keeper checks (±20%). |
 | `XLOGIN_KEEPER_TOUCH` | 14400 | Seconds between reloads of x.com/home (±20%). |
 | `XLOGIN_BROWSER_RESTART_MAX` | 5 | Restarts after crashes before giving up. |
-| `XLOGIN_DESKTOP_SCREEN` / `XLOGIN_MOBILE_SCREEN` | 1440x900x24 / 400x760x24 | Virtual screens. |
+| `XLOGIN_DESKTOP_SCREEN` / `XLOGIN_MOBILE_SCREEN` | 1440x900x24 / 520x900x24 | Virtual screens. |
 | `XLOGIN_NO_NEW_PRIVILEGES` | 0 | Set `no-new-privileges` on browser containers. Needs Docker CE (the snap build rejects it); `.env.example` turns it on for new installs. |
 
 ## Tests
