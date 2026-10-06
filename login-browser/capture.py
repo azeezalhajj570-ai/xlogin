@@ -33,6 +33,7 @@ import json
 import hashlib
 import os
 import random
+import re
 import subprocess
 import sys
 import urllib.error
@@ -59,6 +60,8 @@ os.makedirs(PROFILE_DIR, exist_ok=True)
 LOGIN_URL = "https://x.com/i/flow/login"
 HOME_URL = "https://x.com/home"
 MODE = os.getenv("XLOGIN_MODE", "login").strip().lower()
+DEVICE = os.getenv("XLOGIN_DEVICE", "desktop").strip().lower()
+USER_AGENT = os.getenv("XLOGIN_USER_AGENT", "").strip()
 KEEP_ALIVE = os.getenv("XLOGIN_KEEP_ALIVE", "").strip() in ("1", "true", "yes", "on")
 KEEPER_POLL = int(os.getenv("XLOGIN_KEEPER_POLL", "90"))
 KEEPER_TOUCH = int(os.getenv("XLOGIN_KEEPER_TOUCH", "14400"))
@@ -216,6 +219,37 @@ async def keep(ctx, chrome: subprocess.Popen, last_hash: str | None) -> int:
         await asyncio.sleep(jitter(KEEPER_POLL))
 
 
+def chrome_major_version() -> str | None:
+    """Major version of the installed Chrome, so a synthesised UA matches the
+    real binary (a mismatched version is itself a weak bot signal)."""
+    try:
+        out = subprocess.run([CHROME, "--version"], capture_output=True, text=True,
+                             timeout=10).stdout
+        m = re.search(r"\b(\d+)\.\d+", out)
+        return m.group(1) if m else None
+    except Exception as e:  # noqa: BLE001
+        print(f"could not read Chrome version: {e}", file=sys.stderr, flush=True)
+        return None
+
+
+def mobile_user_agent() -> str:
+    """A current Android Chrome UA matching the installed Chrome version, so
+    x.com serves its real mobile site and the fingerprint stays consistent."""
+    version = chrome_major_version() or "140"
+    return (f"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
+            f"(KHTML, like Gecko) Chrome/{version}.0.0.0 Mobile Safari/537.36")
+
+
+def chrome_user_agent() -> str | None:
+    """The UA to launch Chrome with: an explicit override, a synthesised mobile
+    UA for mobile logins, or None to keep Chrome's native desktop UA."""
+    if USER_AGENT:
+        return USER_AGENT
+    if DEVICE == "mobile":
+        return mobile_user_agent()
+    return None
+
+
 def launch_chrome() -> subprocess.Popen:
     args = [
         CHROME,
@@ -226,15 +260,20 @@ def launch_chrome() -> subprocess.Popen:
         "--no-default-browser-check",
         "--password-store=basic",
         "--disable-features=Translate",
-        "--start-maximized",
     ]
     # Size the window to the virtual screen explicitly (portrait in mobile mode),
-    # so x.com lays itself out for that width rather than relying on the window
-    # manager's maximise.
+    # so x.com lays itself out for that width. Only fall back to the window
+    # manager's maximise when the screen is unparseable: passing --start-maximized
+    # together with an explicit --window-size gives conflicting instructions.
     screen = os.getenv("XLOGIN_SCREEN", "1440x900x24").split("x")
     if len(screen) >= 2 and screen[0].isdigit() and screen[1].isdigit():
         args.append(f"--window-size={screen[0]},{screen[1]}")
         args.append("--window-position=0,0")
+    else:
+        args.append("--start-maximized")
+    ua = chrome_user_agent()
+    if ua:
+        args.append(f"--user-agent={ua}")
     proxy = proxy_server_arg()
     if proxy:
         args.append(f"--proxy-server={proxy}")

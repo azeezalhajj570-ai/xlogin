@@ -123,10 +123,22 @@ class Settings:
     # its browser fingerprint stays the same.
     desktop_screen: str = "1440x900x24"
     mobile_screen: str = "400x760x24"
+    # User-agent for mobile logins. x.com decides its desktop/mobile layout from
+    # the UA, and a desktop UA in a phone-sized, touch-less window is an
+    # inconsistent fingerprint that X throttles ("temporarily limited"). A mobile
+    # UA makes x.com serve its real mobile site and keeps the fingerprint
+    # consistent. Empty = let the container build one matching the installed
+    # Chrome version (recommended). Desktop logins keep Chrome's native UA.
+    mobile_user_agent: str = ""
     nodes: tuple[NodeConfig, ...] = ()
 
     def screen_for(self, device: str | None) -> str:
         return self.mobile_screen if device == "mobile" else self.desktop_screen
+
+    def user_agent_for(self, device: str | None) -> str:
+        """Explicit UA override for a device, or "" to use the default (native
+        desktop UA, or a Chrome-version-matched mobile UA built in the container)."""
+        return self.mobile_user_agent if device == "mobile" else ""
 
     def node(self, name: str) -> NodeConfig | None:
         return next((n for n in self.all_nodes() if n.name == name), None)
@@ -182,6 +194,7 @@ class Settings:
             no_new_privileges=_bool("XLOGIN_NO_NEW_PRIVILEGES", cls.no_new_privileges),
             desktop_screen=os.getenv("XLOGIN_DESKTOP_SCREEN", cls.desktop_screen),
             mobile_screen=os.getenv("XLOGIN_MOBILE_SCREEN", cls.mobile_screen),
+            mobile_user_agent=os.getenv("XLOGIN_MOBILE_USER_AGENT", cls.mobile_user_agent),
             nodes=_parse_nodes(docker_host, browser_network, callback_base_url),
         )
         s.validate(allow_insecure=_bool("XLOGIN_ALLOW_INSECURE_HTTP", False))

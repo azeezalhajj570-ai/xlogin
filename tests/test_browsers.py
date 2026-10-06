@@ -342,6 +342,34 @@ def test_mobile_device_sets_portrait_screen(settings):
     assert out["device"] == "mobile"
 
 
+def test_mobile_marks_device_and_leaves_ua_to_container(settings):
+    # By default the container synthesises a Chrome-matched mobile UA, so the
+    # service passes XLOGIN_DEVICE=mobile and an empty UA override.
+    svc, store, orch, _ = make(settings)
+    out = svc.create_session("m", None, None, None, device="mobile")
+    env = orch.env_of(out["session_id"])
+    assert env["XLOGIN_DEVICE"] == "mobile"
+    assert env["XLOGIN_USER_AGENT"] == ""
+
+
+def test_desktop_never_overrides_user_agent(settings):
+    svc, store, orch, _ = make(settings)
+    out = svc.create_session("d", None, None, None)
+    env = orch.env_of(out["session_id"])
+    assert env["XLOGIN_DEVICE"] == "desktop"
+    assert env["XLOGIN_USER_AGENT"] == ""
+
+
+def test_mobile_user_agent_override_is_passed(settings):
+    ua = "Mozilla/5.0 (custom mobile)"
+    svc, store, orch, _ = make(replace(settings, mobile_user_agent=ua))
+    out = svc.create_session("m", None, None, None, device="mobile")
+    assert orch.env_of(out["session_id"])["XLOGIN_USER_AGENT"] == ua
+    # desktop still keeps the native UA even when a mobile override is configured
+    out2 = svc.create_session("d", None, None, None)
+    assert orch.env_of(out2["session_id"])["XLOGIN_USER_AGENT"] == ""
+
+
 def test_default_device_is_desktop_and_invalid_rejected(settings):
     svc, store, orch, _ = make(settings)
     out = svc.create_session("d", None, None, None)
