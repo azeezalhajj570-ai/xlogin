@@ -121,8 +121,11 @@ class Settings:
     # portrait screen so the login is readable and tappable on a phone. An
     # account keeps the screen it logged in with across wakes and restarts, so
     # its browser fingerprint stays the same.
+    # NB: Chrome enforces a ~500px minimum window width and ignores anything
+    # narrower, so the mobile screen must be at least that or the window overflows
+    # the virtual screen and the off-screen edge is clipped in the VNC view.
     desktop_screen: str = "1440x900x24"
-    mobile_screen: str = "400x760x24"
+    mobile_screen: str = "520x900x24"
     # User-agent for mobile logins. x.com decides its desktop/mobile layout from
     # the UA, and a desktop UA in a phone-sized, touch-less window is an
     # inconsistent fingerprint that X throttles ("temporarily limited"). A mobile
