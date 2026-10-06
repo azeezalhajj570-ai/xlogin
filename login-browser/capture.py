@@ -261,16 +261,23 @@ def launch_chrome() -> subprocess.Popen:
         "--password-store=basic",
         "--disable-features=Translate",
     ]
-    # Size the window to the virtual screen explicitly (portrait in mobile mode),
-    # so x.com lays itself out for that width. Only fall back to the window
-    # manager's maximise when the screen is unparseable: passing --start-maximized
-    # together with an explicit --window-size gives conflicting instructions.
-    screen = os.getenv("XLOGIN_SCREEN", "1440x900x24").split("x")
-    if len(screen) >= 2 and screen[0].isdigit() and screen[1].isdigit():
-        args.append(f"--window-size={screen[0]},{screen[1]}")
-        args.append("--window-position=0,0")
+    if DEVICE == "mobile":
+        # Full-screen and chromeless: no toolbar, tabs, or window-manager
+        # titlebar. Otherwise browser chrome (~90px) eats the top ~10% of a
+        # phone-sized screen and the WM pushes the titlebar off the top edge, so
+        # the top of x.com is clipped. Kiosk makes x.com fill the whole screen.
+        args.append("--kiosk")
     else:
-        args.append("--start-maximized")
+        # Size the window to the virtual screen explicitly, so x.com lays itself
+        # out for that width. Only fall back to the window manager's maximise when
+        # the screen is unparseable: passing --start-maximized together with an
+        # explicit --window-size gives conflicting instructions.
+        screen = os.getenv("XLOGIN_SCREEN", "1440x900x24").split("x")
+        if len(screen) >= 2 and screen[0].isdigit() and screen[1].isdigit():
+            args.append(f"--window-size={screen[0]},{screen[1]}")
+            args.append("--window-position=0,0")
+        else:
+            args.append("--start-maximized")
     ua = chrome_user_agent()
     if ua:
         args.append(f"--user-agent={ua}")
