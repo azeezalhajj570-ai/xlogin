@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Connect your X account</title>
-<link rel="stylesheet" href="/static/login.css?v=5">
+<link rel="stylesheet" href="/static/login.css?v=6">
 </head>
 <body>
 <header>
@@ -31,8 +31,9 @@
       <li>Log in to X as you normally would — including any 2-step code or captcha.</li>
       <li>Once you're in, this window finishes automatically. You can then close it.</li>
     </ol>
-    <p class="muted">We never see your password. The browser is destroyed as soon
-      as you're connected, and the session link expires shortly.</p>
+    <p class="muted" id="help-note">We never see your password. Only your signed-in
+      session is kept, encrypted, so the app can stay connected. You can disconnect
+      at any time from the app. This link expires shortly.</p>
   </aside>
 </main>
 
@@ -44,6 +45,6 @@
   </div>
 </div>
 
-<script type="module" src="/static/app.js?v=6"></script>
+<script type="module" src="/static/app.js?v=7"></script>
 </body>
 </html>

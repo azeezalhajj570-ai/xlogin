@@ -8,6 +8,28 @@ import keysyms from "/static/novnc/core/input/keysymdef.js";
 
 const sessionId = location.pathname.split("/").filter(Boolean).pop();
 const token = new URLSearchParams(location.hash.slice(1)).get("token");
+// Two modes share this page: an interactive login (/login/<session>) and a
+// short-lived view of an account's live browser (/view/<run>).
+const IS_VIEW = location.pathname.startsWith("/view/");
+const BASE = IS_VIEW ? `/view/${encodeURIComponent(sessionId)}` : `/login/${encodeURIComponent(sessionId)}`;
+const STATUS_URL = `${BASE}/status?token=${encodeURIComponent(token || "")}`;
+
+if (IS_VIEW) {
+  // Same page, different job: explain the live-browser view instead of login.
+  document.title = "Your X browser";
+  const brand = document.querySelector(".brand");
+  if (brand) brand.textContent = "Your X browser";
+  const help = document.querySelector(".help");
+  if (help) {
+    help.querySelector("h2").textContent = "What this is";
+    help.querySelector("ol").innerHTML =
+      "<li>This is the browser that keeps your X account connected.</li>"
+      + "<li>Finish whatever X is asking for, such as a captcha or an email code.</li>"
+      + "<li>Then close this window. The browser keeps running.</li>";
+    const note = document.getElementById("help-note");
+    if (note) note.textContent = "This link works for a few minutes only. Don't share it.";
+  }
+}
 
 const $ = (id) => document.getElementById(id);
 const overlay = $("overlay");
@@ -29,11 +51,14 @@ if (!token) {
 
 // Build wss:// (or ws:// on plain http dev) URL to our authenticated bridge.
 const scheme = location.protocol === "https:" ? "wss" : "ws";
-const wsUrl = `${scheme}://${location.host}/sessions/${encodeURIComponent(sessionId)}`
-            + `/vnc?token=${encodeURIComponent(token)}`;
+const wsUrl = IS_VIEW
+  ? `${scheme}://${location.host}${BASE}/vnc?token=${encodeURIComponent(token)}`
+  : `${scheme}://${location.host}/sessions/${encodeURIComponent(sessionId)}`
+    + `/vnc?token=${encodeURIComponent(token)}`;
 
 let rfb = null;
 let done = false;
+let connected = false;
 
 function connect() {
   rfb = new RFB($("screen"), wsUrl, { wsProtocols: ["binary"] });
@@ -45,18 +70,18 @@ function connect() {
   // typing through a real text field instead so the phone's keyboard appears.
   if (IS_TOUCH) rfb.focusOnClick = false;
 
-  rfb.addEventListener("connect", () => { overlay.hidden = true; });
+  rfb.addEventListener("connect", () => { connected = true; overlay.hidden = true; });
   // The VNC server requires a password; fetch it (we're authorised by the
   // token) and hand it to noVNC when it reaches the auth step.
   rfb.addEventListener("credentialsrequired", async () => {
     try {
-      const r = await fetch(`/login/${encodeURIComponent(sessionId)}/status?token=${encodeURIComponent(token)}`,
-                            { cache: "no-store" });
+      const r = await fetch(STATUS_URL, { cache: "no-store" });
       const d = await r.json();
       if (d.vnc_password) rfb.sendCredentials({ password: d.vnc_password });
     } catch { /* disconnect handler will surface the failure */ }
   });
   rfb.addEventListener("disconnect", (e) => {
+    connected = false;
     if (done) return;
     // A clean close usually means the login completed and the container exited.
     overlay.hidden = false;
@@ -71,9 +96,28 @@ function connect() {
 async function poll() {
   if (done) return;
   try {
-    const r = await fetch(`/login/${encodeURIComponent(sessionId)}/status?token=${encodeURIComponent(token)}`,
-                          { cache: "no-store" });
+    const r = await fetch(STATUS_URL, { cache: "no-store" });
+    if (IS_VIEW && r.status === 403) {
+      done = true;
+      try { rfb && rfb.disconnect(); } catch {}
+      showResult(false, "Link expired", "This view link has expired. Open a new one from the app.");
+      return;
+    }
     const data = await r.json();
+    if (IS_VIEW) {
+      if (data.status !== "live") {
+        done = true;
+        try { rfb && rfb.disconnect(); } catch {}
+        showResult(false, "Browser closed",
+          data.status === "logged_out" ? "X signed this account out. Reconnect it from the app."
+                                       : "The browser is not running right now. Try again from the app.");
+        return;
+      }
+      updateTimer(data.expires_in);
+      if (!connected) connect();  // the bridge dropped but the browser is still live
+      if (!done) setTimeout(poll, 5000);
+      return;
+    }
     if (data.status === "success") {
       done = true;
       try { rfb && rfb.disconnect(); } catch {}
@@ -157,7 +201,7 @@ function updateTimer(seconds) {
   if (seconds == null) { t.hidden = true; return; }
   const m = Math.floor(seconds / 60), s = seconds % 60;
   t.hidden = false;
-  t.textContent = `Session expires in ${m}:${String(s).padStart(2, "0")}`;
+  t.textContent = `${IS_VIEW ? "View" : "Session"} expires in ${m}:${String(s).padStart(2, "0")}`;
 }
 
 // ---- mobile keyboard --------------------------------------------------------

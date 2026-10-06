@@ -36,7 +36,7 @@ $("form").addEventListener("submit", async (ev) => {
   try { sessionStorage.setItem(KEY_STORE, key); } catch {}
 
   const body = { account_id };
-  for (const f of ["username", "proxy_url", "redirect_url"]) {
+  for (const f of ["username", "proxy_url", "redirect_url", "device"]) {
     const v = $(f).value.trim();
     if (v) body[f] = v;
   }
@@ -52,7 +52,8 @@ $("form").addEventListener("submit", async (ev) => {
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
-      const map = { 401: "Invalid API key.", 429: "Too many active sessions — try again shortly." };
+      const map = { 401: "Invalid API key.", 429: "Too many active sessions — try again shortly.",
+                    503: data.message || "No browser capacity right now." };
       return showError(map[r.status] || data.message || data.error || `Request failed (${r.status}).`);
     }
     $("link").value = data.login_url;

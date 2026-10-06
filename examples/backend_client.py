@@ -26,14 +26,40 @@ def _call(method: str, path: str, body: dict | None = None) -> dict:
 
 
 def start_login(account_id: str, username: str | None = None,
-                expected_user_id: str | None = None, proxy_url: str | None = None) -> dict:
-    """Returns {session_id, status, login_url, expires_in}. Send the user to login_url."""
+                expected_user_id: str | None = None, proxy_url: str | None = None,
+                device: str | None = None) -> dict:
+    """Returns {session_id, status, login_url, expires_in}. Send the user to login_url.
+    device: "mobile" for owners on a phone (portrait screen), else "desktop"."""
     return _call("POST", "/sessions", {
         "account_id": account_id,
         "username": username,
         "expected_user_id": expected_user_id,
         "proxy_url": proxy_url,
+        "device": device,
     })
+
+
+def browser_status(account_id: str) -> dict:
+    """{state: live|waking|sleeping|crashed|logged_out, node, last_refresh_at, ...}"""
+    return _call("GET", f"/accounts/{account_id}/browser")
+
+
+def wake(account_id: str) -> dict:
+    """Start the browser on its saved profile (e.g. when automation reports a 401)."""
+    return _call("POST", f"/accounts/{account_id}/browser")
+
+
+def sleep(account_id: str) -> dict:
+    return _call("DELETE", f"/accounts/{account_id}/browser")
+
+
+def view_link(account_id: str) -> str:
+    """A 10-minute link to the live browser, for a captcha or email code."""
+    return _call("POST", f"/accounts/{account_id}/view")["view_url"]
+
+
+def move(account_id: str, node: str) -> dict:
+    return _call("POST", f"/accounts/{account_id}/move", {"node": node})
 
 
 def get_session(account_id: str, session_id: str) -> dict:

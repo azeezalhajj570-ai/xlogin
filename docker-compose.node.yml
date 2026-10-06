@@ -1,0 +1,24 @@
+# An extra browser server (node) for xlogin. It runs only the Docker gateway;
+# the control plane (docker-compose.yml on the first server) creates the
+# browser containers here through it.
+#
+# On this server:
+#   1. Install Docker CE (not the snap) and join the private network (WireGuard).
+#   2. docker build -t xlogin-browser:latest ./login-browser
+#   3. NODE_PRIVATE_IP=10.8.0.12 docker compose -f docker-compose.node.yml up -d
+#   4. Firewall: allow 2375 and the VNC port range only from the control plane's
+#      private IP; nothing public.
+# On the control plane, add the node to XLOGIN_NODES (see README) and restart.
+services:
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1      # create / start / inspect / update / archive / remove
+      VOLUMES: 1         # per-account profile volumes
+      POST: 1
+      PING: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "${NODE_PRIVATE_IP:?set NODE_PRIVATE_IP}:2375:2375"
